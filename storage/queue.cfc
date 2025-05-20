@@ -232,6 +232,7 @@ component accessors="true" {
     public function AddMessage(
         required string messageText,
         required numeric messageTTL = 60,
+        required numeric visibilitytimeout = 0,
         required string name = getName(),
         required string sas = getSas(),
         required string storageAccount = getStorageAccount()
@@ -246,7 +247,7 @@ component accessors="true" {
         
         try {
             cfhttp(
-                url = "https://#variables.storageAccount#.queue.core.windows.net/#arguments.name#/messages?messagettl=#arguments.messagettl#&#getSas()#",
+                url = "https://#variables.storageAccount#.queue.core.windows.net/#arguments.name#/messages?messagettl=#arguments.messagettl#&visibilitytimeout=#arguments.visibilitytimeout#&#getSas()#",
                 method = "POST",
                 result = "httpResponse"
             ) {
