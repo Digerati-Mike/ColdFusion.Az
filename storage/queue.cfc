@@ -236,11 +236,12 @@ component accessors="true" {
         required string sas = getSas(),
         required string storageAccount = getStorageAccount()
     ){
-        messageText = arguments.messageText;
         if (getEncodeMessage()) {
-            messageText = toBase64(messageText);
+            var xmlPayload = '<QueueMessage><MessageText>' & toBase64(arguments.messageText) & '</MessageText></QueueMessage>';
+     
+        } else {
+            var xmlPayload = '<QueueMessage><MessageText>' & arguments.messageText & '</MessageText></QueueMessage>';
         }
-        var xmlPayload = '<QueueMessage><MessageText>' & messageText & '</MessageText></QueueMessage>';
 
         
         try {
@@ -260,6 +261,7 @@ component accessors="true" {
                 "messageId" : local.message.QueueMessagesList.QueueMessage.MessageId,
                 "PopReceipt" : local.message.QueueMessagesList.QueueMessage.PopReceipt,
                 "ExpirationTime" : local.message.QueueMessagesList.QueueMessage.ExpirationTime,
+                "serverTimeStamp" : now(),
                 "TimeNextVisible" : local.message.QueueMessagesList.QueueMessage.TimeNextVisible,
                 "InsertionTime" : local.message.QueueMessagesList.QueueMessage.InsertionTime,
                 "messageText" : arguments.messageText
