@@ -47,7 +47,35 @@ component accessors="true" {
         }
     }
 
-    
+
+    /**
+    * @hint Checks if a queue exists
+    * @returnType boolean
+    **/
+    public function QueueExists(
+        required string name = getName(),
+        required string sas = getSas(),
+        required string storageAccount = getStorageAccount()
+    ){
+        try {
+            cfhttp(
+                url = "https://#variables.storageAccount#.queue.core.windows.net/#arguments.name#?comp=metadata&#getSas()#",
+                method = "GET",
+                result = "httpResponse"
+            ) {
+                cfhttpparam(type="header", name="x-ms-version", value="#GetXmsVersion()#");
+            }
+            // 200 means queue exists, 404 means not found
+            return httpResponse.statusCode contains "200";
+        } catch (any e) {
+            // If the error is 404, queue does not exist
+            if (isDefined("httpResponse.statusCode") && httpResponse.statusCode contains "404") {
+                return false;
+            }
+            // For other errors, rethrow or return false
+            return false;
+        }
+    }
 
     /**
     * @hint list queues
@@ -84,7 +112,7 @@ component accessors="true" {
             };
         }
     }   
-    
+
 
     /**
     * @hint Get Queue MetaData
@@ -232,7 +260,8 @@ component accessors="true" {
                 "PopReceipt" : local.message.QueueMessagesList.QueueMessage.PopReceipt,
                 "ExpirationTime" : local.message.QueueMessagesList.QueueMessage.ExpirationTime,
                 "TimeNextVisible" : local.message.QueueMessagesList.QueueMessage.TimeNextVisible,
-                "InsertionTime" : local.message.QueueMessagesList.QueueMessage.InsertionTime
+                "InsertionTime" : local.message.QueueMessagesList.QueueMessage.InsertionTime,
+                "messageText" : arguments.messageText
 
             }
         } catch (any e) {
@@ -399,7 +428,7 @@ component accessors="true" {
     ){
         try {
             cfhttp(
-                url = "https://#variables.storageAccount#.queue.core.windows.net/#arguments.name#/messages/#arguments.messageId#?popreceipt=#arguments.popReceipt#&#getSas()#",
+                url = "https://#variables.storageAccount#.queue.core.windows.net/#arguments.name#/messages/#arguments.messageId#?popreceipt=#ENcodeForUrl( arguments.popReceipt )#&#getSas()#",
                 method = "DELETE",
                 result = "httpResponse"
             ) {
@@ -412,8 +441,7 @@ component accessors="true" {
         } catch (any e) {
             return {
                 "error" = e.message,
-                "statusCode" = isDefined("httpResponse.statusCode") ? httpResponse.statusCode : "",
-                "response" = isDefined("httpResponse.fileContent") ? httpResponse.fileContent : ""
+                "httpResponse" = httpResponse
             };
         }
     }
