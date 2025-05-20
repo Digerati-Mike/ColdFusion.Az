@@ -7,3 +7,4 @@ Azure based components for ColdFusion Developers
 - azFunctions.cfc
 - ims.cfc
 - keyVault.cfc
+- queue.cfc
