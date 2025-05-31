@@ -254,7 +254,9 @@ component accessors=true  {
             "value": arguments.secretValue
         }
 
-        StructAppend( SecretObject, arguments.secretAttributes, true )
+        StructAppend( SecretObject, {
+            "tags" : arguments.secretAttributes
+        }, true )
 
             var local.httpResult = {};
             cfhttp(
