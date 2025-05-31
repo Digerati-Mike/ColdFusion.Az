@@ -244,7 +244,7 @@ component accessors=true  {
     function addSecret( 
         required string secretName,
         required string secretValue,
-        struct secretAttributes = {}
+        struct tags = {}
      ){
         
         var local.endpoint = variables['endpoint'] & "/secrets/" & arguments.secretName & "?api-version=" & variables['api-version']
@@ -255,28 +255,28 @@ component accessors=true  {
         }
 
         StructAppend( SecretObject, {
-            "tags" : arguments.secretAttributes
+            "tags" : arguments.tags
         }, true )
 
-            var local.httpResult = {};
-            cfhttp(
-                url = local.endpoint,
-                method = "PUT",
-                result = "local.httpResult"
-            ) {
-                cfhttpparam(type="header", name="Authorization", value="Bearer " & GetAuth().access_token);
-                cfhttpparam(type="header", name="Content-Type", value="application/json");
-                cfhttpparam(type="body", value=serializeJSON(secretObject));
-            }
+        var local.httpResult = {};
+        cfhttp(
+            url = local.endpoint,
+            method = "PUT",
+            result = "local.httpResult"
+        ) {
+            cfhttpparam(type="header", name="Authorization", value="Bearer " & GetAuth().access_token);
+            cfhttpparam(type="header", name="Content-Type", value="application/json");
+            cfhttpparam(type="body", value=serializeJSON(secretObject));
+        }
 
-            if (local.httpResult.statusCode contains 200 or local.httpResult.statusCode contains 201) {
-                return deserializeJSON(local.httpResult.fileContent);
-            } else {
-                return {
-                "error": "HTTP error " & local.httpResult.statusCode,
-                "response": local.httpResult.fileContent
-                };
-            }
+        if (local.httpResult.statusCode contains 200 or local.httpResult.statusCode contains 201) {
+            return deserializeJSON(local.httpResult.fileContent);
+        } else {
+            return {
+            "error": "HTTP error " & local.httpResult.statusCode,
+            "response": local.httpResult.fileContent
+            };
+        }
     }
 
     
