@@ -100,13 +100,88 @@ component accessors=true  {
 
         return  authRequest 
     }
+    /**
+    * @hint Get secrets by tag
+    * @description Gets all secrets from key vault that have a specific tag key and (optionally) value.
+    * @returnType struct
+    */
+    function getSecretsByTag(
+        required string tagKey,
+        string tagValue = ""
+    ) {
+        var local.endpoint = variables.endpoint & "/secrets/?api-version=" & variables['api-version'];
+        var local.secretsCollection = [];
+        var local.apiRequest = {};
 
+        // Fetch all secrets (paged)
+        do {
+            cfhttp(
+                url = local.endpoint,
+                method = "GET",
+                result = "local.httpResult"
+            ) {
+                cfhttpparam(type="header", name="authorization", value="Bearer " & GetAuth().access_token);
+            }
+            if (local.httpResult.statusCode contains 200 ) {
+                local.apiRequest = deserializeJSON(local.httpResult.fileContent);
+            } else {
+                local.apiRequest = {
+                    "error": "HTTP error " & local.httpResult.statusCode,
+                    "response": local.httpResult.fileContent
+                };
+            }
+
+            if ( IsStruct(local.apiRequest) && StructKeyExists(local.apiRequest, "value")) {
+                ArrayAppend(local.secretsCollection, local.apiRequest.value, true);
+            }
+
+            local.endpoint = StructKeyExists(local.apiRequest, "nextLink") ? local.apiRequest.nextLink : "";
+
+        } while ( StructKeyExists(local.apiRequest, "nextLink") && Len(local.apiRequest.nextLink) > 1 );
+
+        // Filter by tag
+        var local.filteredSecrets = [];
+        for (var i = 1; i <= ArrayLen(local.secretsCollection); i++) {
+            var secret = local.secretsCollection[i];
+            // Get full secret details (to access tags)
+            var secretDetail = {};
+            try {
+                cfhttp(
+                    url = secret.id & "?api-version=" & variables['api-version'],
+                    method = "GET",
+                    result = "local.detailResult"
+                ) {
+                    cfhttpparam(type="header", name="authorization", value="Bearer " & GetAuth().access_token);
+                }
+                if (local.detailResult.statusCode contains 200) {
+                    secretDetail = deserializeJSON(local.detailResult.fileContent);
+                }
+            } catch (any e) {
+                continue;
+            }
+            if (
+                StructKeyExists(secretDetail, "tags") &&
+                StructKeyExists(secretDetail.tags, arguments.tagKey) &&
+                (Len(arguments.tagValue) EQ 0 OR secretDetail.tags[arguments.tagKey] EQ arguments.tagValue)
+            ) {
+                ArrayAppend(local.filteredSecrets, secretDetail, true);
+            }
+        }
+
+        return {
+            "value": local.filteredSecrets
+        };
+    }
+
+    
     /**
     * @hint Get all secrets
     * @description Gets the secrets from key vault.
     * @returnType struct
     */
-    function getSecrets() {
+    function getSecrets(
+        string filter_string
+    ) {
         var local.endpoint = variables.endpoint & "/secrets/?api-version=" & variables['api-version'];
         var local.secretsCollection = [];
         var local.apiRequest = {};
@@ -143,6 +218,21 @@ component accessors=true  {
 
 
         } while ( StructKeyExists( local.apiRequest, "nextLink" ) &&  Len(local.apiRequest.nextLInk) > 1 );
+
+
+        if( structKeyExists(arguments,"filter_string") ){
+            
+            local.newSecretsCollection = [];
+            for (i = 1; i <= ArrayLen(local.secretsCollection); i++) {
+                secretName = ListLast( local.secretsCollection[i].id,'/' );
+                filterLength = Len(arguments.filter_string);
+                if( left( secretName, filterLength ) == arguments.filter_string ){
+                    ArrayAppend(local.newSecretsCollection, local.secretsCollection[i], true);
+                }
+            }
+
+            local.secretsCollection = local.newSecretsCollection;
+        }
 
         return {
             "value": local.secretsCollection
