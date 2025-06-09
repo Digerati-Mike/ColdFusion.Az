@@ -24,16 +24,18 @@ component accessors="true" {
 
 
     /**
-    * @hint Initialize Component properties
-    * @retrunType any
-    **/
-    public function init( struct dynamicProperties = {} ){
-        
-        // Set the default properties
-        for (var key in dynamicProperties) {
+    * @hint Initialize Component Properties
+    * @returnType any
+    */
+    function init( any dynamicProperties = {} ){
 
-            variables[ Trim(key) ] = dynamicProperties[ key ];
-        };  
+        // Set Initialized Properties securely
+        for (var key in dynamicProperties) {
+            if ( isSafeHtml(dynamicProperties[key] ) && IsSafeHtml( key )) {
+                variables[ Trim( key ) ] = getSafeHtml( dynamicProperties[ GetSafeHtml( key ) ] );
+            }
+        }
+      
 
         // Set the IMS Query String with the concantenated values
         Variables.ImsQueryString = "api-version=" & Variables['api-version'] & "&resource=" & Variables['resource']
