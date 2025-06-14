@@ -4,7 +4,7 @@ component accessors="true" {
     property name="storageAccount" required="true" type="string" hint="sas token for authentication";
     property name="name" type="string" hint="name of the queue";
     property name="baseUrl" type="string" hint="baseUrl / hostname of the queue";
-    property name="xMsVersion" type="string" default="2023-11-03" hint="name of the queue";
+    property name="xMsVersion" type="string" default="2023-11-03" hint="api version to use";
     property name="encodeMessage" type="boolean" default="true" hint="base64 encodes the message before placing into the queue";
     
 
