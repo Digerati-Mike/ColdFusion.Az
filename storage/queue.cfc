@@ -12,24 +12,38 @@ component accessors="true" {
     property name="decodeMessage" type="boolean" default="true" hint="Automatically decodes the message if it is base64 encoded.";
 
 
-
+    /**
+    * @hint Constructor for the queue component. Initializes required properties and validates authentication.
+    * @param dynamicProperties Struct containing initialization properties (Sas, storageAccount, name)
+    * @throws Auth Error if authentication fails
+    */
     function init( required struct dynamicProperties = {} ) {
 
-
+        // Set the SAS token for authentication
         variables.Sas = arguments.dynamicProperties.Sas;
+
+        // Set the storage account name
         variables.storageAccount = arguments.dynamicProperties.storageAccount;
 
+        // Set the base URL for the queue service
         variables.baseUrl = "https://#variables.storageAccount#.queue.core.windows.net";
 
+        // Set the queue name
         variables.name = arguments.dynamicProperties.name;
 
+        // Test authentication to ensure the provided credentials are valid
         if( !testAuth() ){
             throw( type="Auth Error", message="Could not validate connection to storage account", detail="Please check your connection string and try again." );
         }
+
+
+        if( !QueueExists( variables.name ) ){
+            AddQueue( variables.name, variables.Sas, variables.storageAccount );
+        }
         
+        // Return the component instance
         return this;
     }
-    
     
     /** 
     * @hint Converts an XML string to a JSON object
@@ -277,6 +291,56 @@ component accessors="true" {
         }
     }
 
+    /**
+    * @hint Update a message to the specified queue
+    * @returnType struct
+    **/
+    public function UpdateMessage(
+        required string messageText,
+        required string messageId,
+        required string popReceipt,
+        required numeric messageTTL = 60,
+        required numeric visibilitytimeout = 0,
+        required string name = getName(),
+        required string sas = getSas(),
+        required string storageAccount = getStorageAccount()
+    ){
+        if (getEncodeMessage()) {
+            var xmlPayload = '<QueueMessage><MessageText>' & toBase64(arguments.messageText) & '</MessageText></QueueMessage>';
+     
+        } else {
+            var xmlPayload = '<QueueMessage><MessageText>' & arguments.messageText & '</MessageText></QueueMessage>';
+        }
+
+        
+        try {
+            cfhttp(
+                url = "https://#variables.storageAccount#.queue.core.windows.net/#arguments.name#/messages/#arguments.messageId#?popreceipt=#arguments.popreceipt#&visibilitytimeout=#arguments.visibilitytimeout#&#getSas()#",
+                method = "PUT",
+                result = "httpResponse"
+            ) {
+                cfhttpparam(type="header", name="x-ms-version", value="#GetXmsVersion()#");
+                cfhttpparam(type="header", name="Content-Type", value="application/xml");
+                cfhttpparam(type="body", value=xmlPayload);
+            }
+
+            local.message = xmlToJson(httpResponse.fileContent);
+
+            return {
+                "messageId" : arguments.MessageId,
+                "PopReceipt" : arguments.PopReceipt,
+                "messageText" : arguments.messageText
+
+            }
+        } catch (any e) {
+            return {
+                "error" = e.message,
+                "statusCode" = isDefined("httpResponse.statusCode") ? httpResponse.statusCode : "",
+                "response" = isDefined("httpResponse.fileContent") ? httpResponse.fileContent : ""
+            };
+        }
+    }
+
     
     /**
     * @hint Verifies the SAS token and storage account credentials by attempting to list queues
@@ -310,10 +374,10 @@ component accessors="true" {
     * @returnType struct
     **/
     public function ListMessages(
+        numeric numOfMessages = 1,
         required string name = getName(),
         required string sas = getSas(),
-        required string storageAccount = getStorageAccount(),
-        numeric numOfMessages = 1
+        required string storageAccount = getStorageAccount()
     ){
         try {
             cfhttp(
@@ -424,9 +488,9 @@ component accessors="true" {
     * @returnType struct
     **/
     public function DeleteMessage(
-        required string name = getName(),
         required string messageId,
         required string popReceipt,
+        required string name = getName(),
         required string sas = getSas(),
         required string storageAccount = getStorageAccount()
     ){
