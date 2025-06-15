@@ -10,21 +10,54 @@ component accessors="true" {
 
     function init( required struct dynamicProperties = {} ) {
 
+        // Loop over dynamicProperties and set each as a variable
+        for (var key in arguments.dynamicProperties) {
+            variables[key] = arguments.dynamicProperties[key];
+        }
 
-        variables.Sas = arguments.dynamicProperties.Sas;
+        // Set baseUrl at the end
+        variables.baseUrl = "https://#variables.storageAccount#.table.core.windows.net";
 
-        variables.storageAccount = arguments.dynamicProperties.storageAccount;
 
         variables.ODataType = arguments.dynamicProperties.ODataType ?: "fullmetadata";
 
-        variables.baseUrl = "https://#variables.storageAccount#.table.core.windows.net";
-
-        variables.name = arguments.dynamicProperties.name;
-
+        if( !TableExists() ){
+            createTable()
+        }
         
         return this;
     }
 
+    
+    /**
+    * @hint Checks if a table exists
+    * @returnType boolean
+    **/
+    public function TableExists(
+        required string name = getName(),
+        required string sas = getSas(),
+        required string storageAccount = getStorageAccount()
+    ){
+        try {
+            cfhttp(
+                url = "#GetBaseUrl()#/#arguments.name#()?&#getSas()#",
+                method = "GET",
+                result = "httpResponse"
+            ) {
+                cfhttpparam(type="header", name="x-ms-version", value="#GetXmsVersion()#");
+                cfhttpparam(type="header", name="Accept", value="application/json;odata=#GetODataType()#");
+            }
+            // 200 means table exists, 404 means not found
+            return httpResponse.statusCode contains "200";
+        } catch (any e) {
+            // If the error is 404, table does not exist
+            if (isDefined("httpResponse.statusCode") && httpResponse.statusCode contains "404") {
+                return false;
+            }
+            // For other errors, rethrow or return false
+            return false;
+        }
+    }
 
 
 
@@ -64,12 +97,19 @@ component accessors="true" {
     **/
     public function ListRecords(
         required string tableName = getName(),
+        string filter,
         required string sas = getSas(),
         required string storageAccount = getStorageAccount()
     ){
         try {
+            local.endpoint = "#GetBaseUrl()#/#arguments.tableName#()";
+            local.endpoint &= "?" & getSas();
+            if (len(arguments.filter) GTE 1) {
+                local.endpoint &= "&$filter=#arguments.filter#";
+            } 
+
             cfhttp(
-                url = "#GetBaseUrl()#/#arguments.tableName#()?#getSas()#",
+                url = local.endpoint,
                 method = "GET",
                 result = "httpResponse"
             ) {
@@ -123,6 +163,47 @@ component accessors="true" {
             };
         }
     }
+
+
+
+    /**
+    * @hint Create a Table
+    * @returnType struct
+    **/
+    public function CreateTable(
+        required string tableName = getName(),
+        required string sas = getSas(),
+        required string storageAccount = getStorageAccount()
+    ){
+        try {
+            // Azure Table Storage expects a JSON body with TableName property
+            local.body = serializeJSON({ "TableName": arguments.tableName });
+
+            cfhttp(
+                url = "#GetBaseUrl()#/Tables?#getSas()#",
+                method = "POST",
+                result = "httpResponse"
+            ) {
+                cfhttpparam(type="header", name="x-ms-version", value="#GetXmsVersion()#");
+                cfhttpparam(type="header", name="Accept", value="application/json;odata=#GetODataType()#");
+                cfhttpparam(type="header", name="Content-Type", value="application/json");
+                cfhttpparam(type="body", value="#local.body#");
+            }
+
+            return {
+                "statusCode": httpResponse.statusCode,
+                "response": isJSON(httpResponse.fileContent) ? DeserializeJSON(httpResponse.fileContent) : httpResponse.fileContent
+            };
+        } catch (any e) {
+            return {
+                "error" = e.message
+            };
+        }
+    }
+
+
+
+
     /**
     * @hint Get a specific Record from a Table
     * @returnType struct
@@ -155,6 +236,42 @@ component accessors="true" {
         }
     }
 
+
+    /**
+    * @hint Delete a Record from a Table
+    * @returnType struct
+    **/
+    public function DeleteRecord(
+        required string partitionKey,
+        required string rowKey,
+        required string tableName = getName(),
+        required string sas = getSas(),
+        required string storageAccount = getStorageAccount()
+    ){
+        try {
+            cfhttp(
+                url = "#GetBaseUrl()#/#arguments.tableName#(PartitionKey='#arguments.partitionKey#',RowKey='#arguments.rowKey#')?#getSas()#",
+                method = "DELETE",
+                result = "httpResponse"
+            ) {
+                cfhttpparam(type="header", name="x-ms-version", value="#GetXmsVersion()#");
+                cfhttpparam(type="header", name="Accept", value="application/json;odata=#GetODataType()#");
+                cfhttpparam(type="header", name="If-Match", value="*");
+            }
+
+            return {
+                "statusCode": httpResponse.statusCode,
+                "response": isJSON(httpResponse.fileContent) ? DeserializeJSON(httpResponse.fileContent) : httpResponse.fileContent
+            };
+        } catch (any e) {
+            return {
+                "error" = e.message
+            };
+        }
+    }
+
+
+    
     /**
     * @hint Update a Record in a Table (Merge)
     * @returnType struct
