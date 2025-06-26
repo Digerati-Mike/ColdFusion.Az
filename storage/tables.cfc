@@ -104,7 +104,7 @@ component accessors="true" {
         try {
             local.endpoint = "#GetBaseUrl()#/#arguments.tableName#()";
             local.endpoint &= "?" & getSas();
-            if (len(arguments.filter) GTE 1) {
+            if ( StructKeyExists( arguments,"filter" ) && len(arguments.filter) GTE 1) {
                 local.endpoint &= "&$filter=#arguments.filter#";
             } 
 
@@ -128,6 +128,47 @@ component accessors="true" {
     }   
 
 
+    /**
+    * @hint Delete all records in a Table
+    * @returnType struct
+    **/
+    public function DeleteAllRecords(
+        required string tableName = getName(),
+        required string sas = getSas(),
+        required string storageAccount = getStorageAccount()
+    ){
+        var deletedCount = 0;
+        var errors = [];
+        try {
+            var recordsResponse = ListRecords(tableName=arguments.tableName, sas=arguments.sas, storageAccount=arguments.storageAccount);
+            if (structKeyExists(recordsResponse, "value")) {
+                for (var record in recordsResponse.value) {
+                    var delResult = DeleteRecord(
+                        partitionKey = record.PartitionKey,
+                        rowKey = record.RowKey,
+                        tableName = arguments.tableName,
+                        sas = arguments.sas,
+                        storageAccount = arguments.storageAccount
+                    );
+                    if (structKeyExists(delResult, "error")) {
+                        arrayAppend(errors, delResult.error);
+                    } else {
+                        deletedCount++;
+                    }
+                }
+            } else if (structKeyExists(recordsResponse, "error")) {
+                return { "error": recordsResponse.error };
+            }
+            return {
+                "deletedCount": deletedCount,
+                "errors": errors
+            };
+        } catch (any e) {
+            return {
+                "error": e.message
+            };
+        }
+    }
     /**
     * @hint Insert a Record into a Table
     * @returnType struct
@@ -270,8 +311,36 @@ component accessors="true" {
         }
     }
 
+    /**
+    * @hint Delete a Table
+    * @returnType struct
+    **/
+    public function DeleteTable(
+        required string tableName = getName(),
+        required string sas = getSas(),
+        required string storageAccount = getStorageAccount()
+    ){
+        try {
+            cfhttp(
+                url = "#GetBaseUrl()#/Tables('#arguments.tableName#')?#getSas()#",
+                method = "DELETE",
+                result = "httpResponse"
+            ) {
+                cfhttpparam(type="header", name="x-ms-version", value="#GetXmsVersion()#");
+                cfhttpparam(type="header", name="Accept", value="application/json;odata=#GetODataType()#");
+            }
 
-    
+            return {
+                "statusCode": httpResponse.statusCode,
+                "response": isJSON(httpResponse.fileContent) ? DeserializeJSON(httpResponse.fileContent) : httpResponse.fileContent
+            };
+        } catch (any e) {
+            return {
+                "error" = e.message
+            };
+        }
+    }
+
     /**
     * @hint Update a Record in a Table (Merge)
     * @returnType struct
