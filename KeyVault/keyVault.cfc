@@ -180,16 +180,19 @@ component accessors=true  {
     * @returnType struct
     */
     function getSecrets(
+        numeric pageSize = 1,
         string filter_string
     ) {
         var local.endpoint = variables.endpoint & "/secrets/?api-version=" & variables['api-version'];
         var local.secretsCollection = [];
         var local.apiRequest = {};
-        var local.secretCount = 0;
+        var local.secretCount = 10;
 
-
+        local.loopCount = 0
         do {
+            local.loopCOunt ++ 
             local.secretCount++;
+
             // Make the API request using cfhttp
             local.apiRequest = {};
             cfhttp(
@@ -217,7 +220,7 @@ component accessors=true  {
             local.endpoint = StructKeyExists( local.apiRequest, "nextLink") ? local.apiRequest.nextLink : "";
 
 
-        } while ( StructKeyExists( local.apiRequest, "nextLink" ) &&  Len(local.apiRequest.nextLInk) > 1 );
+        } while ( StructKeyExists( local.apiRequest, "nextLink" ) &&  Len(local.apiRequest.nextLInk) > 1 && local.loopCount <= pageSize );
 
 
         if( structKeyExists(arguments,"filter_string") ){
