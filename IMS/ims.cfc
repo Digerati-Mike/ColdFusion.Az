@@ -4,7 +4,7 @@ component accessors="true" {
 		name="api-version"
 		type="string"
 		setter=true
-    default="2018-02-01"
+        default="2019-08-01"
 		hint="API Version to use when running requests against the internal metadata service.";
 
 
@@ -12,7 +12,7 @@ component accessors="true" {
 		name="resource"
 		type="string"
 		setter=true
-    default="https://vault.azure.net/"
+        default="https://vault.azure.net/"
 		hint="Resource / API to obtain a JWT token for.";
     
 
@@ -77,6 +77,10 @@ component accessors="true" {
         if (structKeyExists(Variables.response, "fileContent") && IsJSON( Variables.response.fileContent ) ) {
 
             Variables.response = DeserializeJSON( Variables.response.fileContent )
+
+            if( structKeyExists(Variables.response, "expires_in") ) {
+                variables['response']['expires_time'] = expirationTime = dateAdd("s", Variables.response.expires_in, now());
+            }
             
         }
         
