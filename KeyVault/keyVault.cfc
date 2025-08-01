@@ -264,7 +264,7 @@ component accessors=true  {
     */
     function addSecret( 
         required string secretName,
-        required string secretValue,
+        required string secretValue = CreateUUID(),
         struct tags = {}
      ){
         
@@ -272,7 +272,13 @@ component accessors=true  {
 
 
         secretObject = {
-            "value": arguments.secretValue
+            "value": arguments.secretValue,
+            "attributes": {
+                "enabled": true,
+                "created": dateTimeToEpoch(now()),
+                "updated": dateTimeToEpoch(now()),
+                "exp": dateTimeToEpoch(dateAdd("d", 365, now())) // Default to 1 year expiration
+            }
         }
 
         StructAppend( SecretObject, {
@@ -342,7 +348,15 @@ component accessors=true  {
         if (!isDate(dateTime)) {
             throw "Invalid dateTime format.";
         }
-        return dateDiff("s", createDateTime(1970, 1, 1, 0, 0, 0), dateTime);
+        
+        // Get timezone info and calculate offset in seconds
+        var tzInfo = getTimeZone();
+        var offsetSeconds = tzInfo.utcHourOffset * 3600 + tzInfo.utcMinuteOffset * 60;
+        
+        // Convert to epoch time and adjust for timezone (subtract offset to get UTC)
+        var epochTime = dateDiff("s", createDateTime(1970, 1, 1, 0, 0, 0), dateTime) - offsetSeconds;
+        
+        return epochTime;
     }
 
     
@@ -350,7 +364,16 @@ component accessors=true  {
         if (!isNumeric(epoch)) {
             throw "Invalid epoch time format.";
         }
-        return dateAdd("s", epoch, createDateTime(1970, 1, 1, 0, 0, 0));
+        
+        // Get timezone info and calculate offset in seconds
+        var tzInfo = getTimeZone();
+        var offsetSeconds = tzInfo.utcHourOffset * 3600 + tzInfo.utcMinuteOffset * 60;
+        
+        // Convert from UTC epoch to local time (add offset to get local time)
+        var localDateTime = dateAdd("s", epoch + offsetSeconds, createDateTime(1970, 1, 1, 0, 0, 0));
+        
+        return localDateTime;
     }
+    
 
 }
