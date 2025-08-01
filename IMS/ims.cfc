@@ -79,7 +79,7 @@ component accessors="true" {
             Variables.response = DeserializeJSON( Variables.response.fileContent )
 
             if( structKeyExists(Variables.response, "expires_in") ) {
-                variables['response']['expires_time'] = expirationTime = dateAdd("s", Variables.response.expires_in, now());
+                variables['response']['expires_time']  = dateAdd("s", Variables.response.expires_in, now());
             }
             
         }
