@@ -1,26 +1,7 @@
 component accessors="true" {
-    
-	property 
-		name="api-version"
-		type="string"
-		setter=true
-        default="2019-08-01"
-		hint="API Version to use when running requests against the internal metadata service.";
-
-
-	property 
-		name="resource"
-		type="string"
-		setter=true
-        default="https://vault.azure.net/"
-		hint="Resource / API to obtain a JWT token for.";
-    
-
-	property 
-		name="imsEndpoint"
-		type="string"
-		setter=true
-		hint="Endpoint of the internal metadata service";
+    property name="api-version" type="string" setter=true default="2019-08-01" hint="API Version to use when running requests against the internal metadata service.";
+    property name="resource" type="string" setter=true default="https://vault.azure.net/" hint="Resource / API to obtain a JWT token for.";
+    property name="imsEndpoint" type="string" setter=true hint="Endpoint of the internal metadata service.";
 
 
     /**
@@ -31,9 +12,7 @@ component accessors="true" {
 
         // Set Initialized Properties securely
         for (var key in dynamicProperties) {
-            if ( isSafeHtml(dynamicProperties[key] ) && IsSafeHtml( key )) {
-                variables[ Trim( key ) ] = getSafeHtml( dynamicProperties[ GetSafeHtml( key ) ] );
-            }
+            variables[ Trim( key ) ] =  dynamicProperties[ key ] 
         }
       
 
@@ -50,40 +29,42 @@ component accessors="true" {
     
     /**
     * @hint Get access_token
-    * @retrunType struct
+    * @returnType struct
     **/
     public function Auth(){
         
-        // Initialize The httpService
-        httpService = new Http( 
-            url = variables.imsEndpoint, 
-            method = "GET"
-        );
-
-
-        // Add the Headers
-        httpService.addParam(
-            type = "header", 
-            name = "Metadata", 
-            value = true
-        );
-        
-
-        // Send the api request and set the response to a variable
-        Variables.response = httpService.send().getPrefix();
-        
-
-        // check if the content is JSON and automatically deserialize if it is
-        if (structKeyExists(Variables.response, "fileContent") && IsJSON( Variables.response.fileContent ) ) {
-
-            Variables.response = DeserializeJSON( Variables.response.fileContent )
-
-            if( structKeyExists(Variables.response, "expires_in") ) {
-                variables['response']['expires_time']  = dateAdd("s", Variables.response.expires_in, now());
-            }
-            
+        // Make the HTTP request using cfhttp
+        cfhttp(
+            url = variables.imsEndpoint,
+            method = "GET",
+            result = "httpResult"
+        ) {
+            cfhttpparam(
+                type = "header",
+                name = "Metadata",
+                value = "true"
+            );
         }
-        
+
+        // Initialize response variable
+        Variables.response = {};
+
+        // Check if the request was successful
+        if (structKeyExists(httpResult, "fileContent") && IsJSON(httpResult.fileContent)) {
+            Variables.response = DeserializeJSON(httpResult.fileContent);
+
+            if (structKeyExists(Variables.response, "expires_in")) {
+                variables['response']['expires_time'] = dateAdd("s", Variables.response.expires_in, now());
+            }
+        } else {
+            // Optionally, handle errors or non-JSON responses
+            Variables.response = {
+                error = "Request failed or response was not JSON",
+                statusCode = httpResult.statusCode ?: "",
+                responseHeader = httpResult.responseHeader ?: ""
+            };
+        }
+
         return Variables.response;
     }
 }
