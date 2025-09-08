@@ -3,46 +3,11 @@
 * @description this will be used to authenticate and interace with the Azure Key Vault rest api and retrieve api secrets and credentials
 */
 component accessors=true  {
-    
-	property 
-		name="auth"
-		type="string"
-		setter=true
-		hint="JWT  / Bearer token obtained from the internal metadata service, or an entra app registration with access to the key vault.";
-	
-    
-	property 
-		name="imsEndpoint"
-		type="string"
-		setter=true
-        default="http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://vault.azure.net/"
-		hint="Endpoint of the internal metadata service";
-	
-	property 
-		name="api-version"
-		type="string"
-		setter=true
-        default="7.4"
-		hint="Default api version to use";
-	
-    
-	property 
-		name="endpoint"
-		type="string"
-		setter=true
-        default="https://{{vaultName}}.vault.azure.net/"
-		hint='Endpoint to send the api requests to';
-	
-
-	property 
-		name="vaultName"
-		type="string"
-        required="true"
-		setter=true
-		hint='Name of the key vault';
-	
-
-    
+    property name="auth" type="string" setter=true hint="JWT  / Bearer token obtained from the internal metadata service, or an entra app registration with access to the key vault.";
+    property name="imsEndpoint" type="string" setter=true default="http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://vault.azure.net/" hint="Endpoint of the internal metadata service";
+    property name="api-version" type="string" setter=true default="7.4" hint="Default api version to use";
+    property name="endpoint" type="string" setter=true default="https://{{vaultName}}.vault.azure.net/" hint='Endpoint to send the api requests to';
+    property name="vaultName" type="string" required="true" setter=true hint='Name of the key vault';
     
     /**
     * @hint Initialize Component Properties
