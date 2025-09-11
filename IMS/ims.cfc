@@ -1,4 +1,10 @@
+/**
+* @author       Michael Hayes - Media3 Technologies, LLC
+* @hint         Authenticate to the Azure Internal Metadata Service (IMDS)
+* @description  this will be used to authenticate to various services using the internal metadata service (IMDS) available to azure hosted services
+*/
 component accessors="true" {
+    
     property name="api-version" type="string" setter=true default="2019-08-01" hint="API Version to use when running requests against the internal metadata service.";
     property name="resource" type="string" setter=true default="https://vault.azure.net/" hint="Resource / API to obtain a JWT token for.";
     property name="imsEndpoint" type="string" setter=true hint="Endpoint of the internal metadata service.";
@@ -14,7 +20,6 @@ component accessors="true" {
         for (var key in dynamicProperties) {
             variables[ Trim( key ) ] =  dynamicProperties[ key ] 
         }
-      
 
         // Set the IMS Query String with the concantenated values
         Variables.ImsQueryString = "api-version=" & Variables['api-version'] & "&resource=" & Variables['resource']
