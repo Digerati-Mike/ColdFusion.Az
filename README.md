@@ -21,5 +21,11 @@ Azure based components for ColdFusion Developers
 - storage/azTables.cfc
 
 ---
+- oai/completions.cfc
+- oai/responses.cfc
+
+
+---
 
 - utils/keyToolService.cfc
+- utils/postmanClient.cfc
