@@ -222,19 +222,30 @@ component accessors=true  {
     
     
 
+
     /**
     * @hint Add a secret
-    * @description Adds a secret to the key vault
+    * @description Adds a secret to the key vault. expirationMinutes controls secret expiry in minutes.
     * @returnType struct
     */
     function addSecret( 
         required string secretName,
         required string secretValue = CreateUUID(),
+        string expires = "129600", // default = 3 months in minutes (90*24*60)
         struct tags = {}
-     ){
+        ){
         
-        var local.endpoint = variables['endpoint'] & "/secrets/" & arguments.secretName & "?api-version=" & variables['api-version']
+        var local.endpoint = variables['endpoint'] & "/secrets/" & arguments.secretName & "?api-version=" & variables['api-version'];
 
+        var expDate = now();
+        // If expires is numeric, treat as minutes from now, else try to parse as date
+        if (isNumeric(arguments.expires)) {
+            expDate = dateAdd("n", arguments.expires, now());
+        } else if (isDate(arguments.expires)) {
+            expDate = arguments.expires;
+        } else {
+            throw "Invalid expires value. Must be a number (minutes) or a valid date string.";
+        }
 
         secretObject = {
             "value": arguments.secretValue,
@@ -242,13 +253,13 @@ component accessors=true  {
                 "enabled": true,
                 "created": dateTimeToEpoch(now()),
                 "updated": dateTimeToEpoch(now()),
-                "exp": dateTimeToEpoch(dateAdd("d", 365, now())) // Default to 1 year expiration
+                "exp": dateTimeToEpoch(expDate)
             }
-        }
+        };
 
-        StructAppend( SecretObject, {
+        StructAppend(secretObject, {
             "tags" : arguments.tags
-        }, true )
+        }, true);
 
         var local.httpResult = {};
         cfhttp(
@@ -265,8 +276,8 @@ component accessors=true  {
             return deserializeJSON(local.httpResult.fileContent);
         } else {
             return {
-            "error": "HTTP error " & local.httpResult.statusCode,
-            "response": local.httpResult.fileContent
+                "error": "HTTP error " & local.httpResult.statusCode,
+                "response": local.httpResult.fileContent
             };
         }
     }
