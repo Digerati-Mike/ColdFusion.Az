@@ -54,7 +54,7 @@ Tip: When running on a remote or production server, set `host` or `sourceUrl` to
 
 ```cfml
 apps = pc.listApps();
-/** apps => { "value": [ { "name": "defender", "status": "", "message": "" } ] } */
+/** apps => { "value": [ { "name": "Sample", "status": "", "message": "" } ] } */
 
 // With explicit root
 apps = pc.listApps( sourceUrl = "https://api.example.com/rest/" );
@@ -74,7 +74,7 @@ Notes:
 ## Fetch a single app schema
 
 ```cfml
-schema = pc.getAppSchema( appName = "defender" );
+schema = pc.getAppSchema( appName = "Sample" );
 // Returns deserialized JSON schema (struct/array) for that app
 ```
 
@@ -82,7 +82,7 @@ schema = pc.getAppSchema( appName = "defender" );
 
 ```cfml
 endpoints = pc.getAppEndpoints( schemas.value );
-// => [ "/defender/v1/metrics/heartbeat", "/defender/v1/metrics/memory", ... ]
+// => [ "/Sample/v1/metrics/heartbeat", "/Sample/v1/metrics/memory", ... ]
 ```
 
 ## Generate a Postman collection from legacy schema
@@ -93,12 +93,12 @@ Input must be a JSON string representing an array of schema objects (e.g., from 
 var schemaJson = serializeJSON( schemas.value );
 var collectionJson = pc.SwaggerToPostman(
 	jsonSchema = schemaJson,
-	collectionName = "Defender API",
-	baseUrl = "https://api.example.com/rest/defender/v1"
+	collectionName = "Sample API",
+	baseUrl = "https://api.example.com/rest/v1"
 );
 
 // If cdci=true and rootDir set, the collection is auto-written as
-//   {rootDir}/Defender_API-postman.json  (sanitized name)
+//   {rootDir}/postman.json  (sanitized name)
 ```
 
 Collection structure highlights:
@@ -111,7 +111,7 @@ Collection structure highlights:
 ```cfml
 envJson = pc.generateEnvironment(
 	envName = "Production",
-	baseUrl = "https://api.example.com/rest/defender/v1"
+	baseUrl = "https://api.example.com/rest/v1"
 );
 ```
 
@@ -122,14 +122,14 @@ Result is a Postman environment JSON with `baseUrl` variable. Import both the co
 ```cfml
 openapiJson = pc.SwaggerToOpenAPI(
 	jsonSchema = schemaJson,
-	title = "Defender API",
+	title = "Sample API",
 	version = "1.0.0",
-	baseUrl = "https://api.example.com/rest/defender/v1",
+	baseUrl = "https://api.example.com/rest/v1",
 	openapiVersion = "3.0.3"
 );
 
 // If cdci=true and rootDir set, auto-written as
-//   {rootDir}/Defender_API-openapi.json
+//   {rootDir}/openapi.json
 ```
 
 Notes:
@@ -166,19 +166,19 @@ var schemaJson = serializeJSON(allSchemas.value);
 // 2) Collection + Environment
 var collectionJson = pc.SwaggerToPostman(
 	jsonSchema = schemaJson,
-	collectionName = "Defender API"
+	collectionName = "Sample API"
 );
 var envJson = pc.generateEnvironment(
 	envName = "Production",
-	baseUrl = pc.getSourceUrl() & "defender/v1"
+	baseUrl = pc.getSourceUrl() & "Sample/v1"
 );
 
 // 3) OpenAPI
 var openapiJson = pc.SwaggerToOpenAPI(
 	jsonSchema = schemaJson,
-	title = "Defender API",
+	title = "Sample API",
 	version = "1.0.0",
-	baseUrl = pc.getSourceUrl() & "defender/v1"
+	baseUrl = pc.getSourceUrl() & "Sample/v1"
 );
 
 // 4) Markdown from collection
@@ -208,6 +208,6 @@ Payload includes fields like `event`, `component`, `timestamp`, and operation-sp
 ## Tips
 
 - Prefer `getSourceUrl()` to construct URLs consistently; it ensures a trailing slash
-- When building `baseUrl` for Postman/OpenAPI, target the logical REST base like `https://api.example.com/rest/defender/v1`
+- When building `baseUrl` for Postman/OpenAPI, target the logical REST base like `https://api.example.com/rest/v1`
 - Use `getAppEndpoints(schemas.value)` to quickly list unique endpoint paths across all resources
 - Preserve JSON key casing across your own integrations to match codebase conventions
