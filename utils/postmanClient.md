@@ -4,9 +4,9 @@ Practical guide for `com/integrations/common/PostmanClient.cfc`: discover REST a
 
 ## Overview
 
-This utility helps local dev tooling under `/app/dev/*` by:
+This utility helps dev tooling under `/app/dev/*` by:
 
-- Discovering REST applications at a REST root (e.g., `http://127.0.0.1:8500/rest/`)
+- Discovering REST applications at a REST root (e.g., `https://api.example.com/rest/`)
 - Fetching each app's legacy schema shape
 - Converting legacy/Swagger-like schema → Postman collection (v2.1)
 - Converting legacy schema → OpenAPI 3.x JSON
@@ -29,9 +29,9 @@ Key methods:
 ```cfml
 // Create an instance
 pc = new PostmanClient({
-	host: "127.0.0.1",      // or FQDN; used to build default base url
+	host: "api.example.com",      // or FQDN; used to build default base url
 	// baseUrl: "https://api.example.com", // optional explicit base url
-	// sourceUrl: "http://127.0.0.1:8500/rest/" // optional, otherwise derived
+	// sourceUrl: "https://api.example.com/rest/" // optional, otherwise derived
 	rootDir: expandPath("/_data/tools"), // where outputs can be saved when cdci=true
 	cdci: true,                          // auto-write generated files (best-effort)
 	webhook: true,                       // optionally emit webhook events
@@ -45,10 +45,10 @@ The client picks a base URL in this order:
 
 1) The `baseUrl` argument you pass to a method
 2) The component property `baseUrl` (if set and not the placeholder `https://api.example.com`)
-3) The `host` property: becomes `http://{host}:8500/rest`
+3) The `host` property: becomes `https://{host}/rest`
 4) Fallback: `https://api.example.com`
 
-Tip: When running on a CF dev server, `host: "127.0.0.1"` is often enough. You can also set `sourceUrl` directly to `http://127.0.0.1:8500/rest/`. `getSourceUrl()` always ensures a trailing slash.
+Tip: When running on a remote or production server, set `host` or `sourceUrl` to your API host. `getSourceUrl()` always ensures a trailing slash.
 
 ## Discover available REST apps
 
@@ -57,14 +57,14 @@ apps = pc.listApps();
 /** apps => { "value": [ { "name": "defender", "status": "", "message": "" } ] } */
 
 // With explicit root
-apps = pc.listApps( sourceUrl = "http://127.0.0.1:8500/rest/" );
+apps = pc.listApps( sourceUrl = "https://api.example.com/rest/" );
 ```
 
 ## Fetch all app schemas at once
 
 ```cfml
 schemas = pc.listAppSchemas();
-/** schemas => { "value": [ { resources: { ... }, host: "127.0.0.1" }, ... ] } */
+/** schemas => { "value": [ { resources: { ... }, host: "api.example.com" }, ... ] } */
 ```
 
 Notes:
@@ -94,7 +94,7 @@ var schemaJson = serializeJSON( schemas.value );
 var collectionJson = pc.SwaggerToPostman(
 	jsonSchema = schemaJson,
 	collectionName = "Defender API",
-	baseUrl = "https://myhost/rest/defender/v1"
+	baseUrl = "https://api.example.com/rest/defender/v1"
 );
 
 // If cdci=true and rootDir set, the collection is auto-written as
@@ -110,8 +110,8 @@ Collection structure highlights:
 
 ```cfml
 envJson = pc.generateEnvironment(
-	envName = "Local",
-	baseUrl = "http://127.0.0.1:8500/rest/defender/v1"
+	envName = "Production",
+	baseUrl = "https://api.example.com/rest/defender/v1"
 );
 ```
 
@@ -124,7 +124,7 @@ openapiJson = pc.SwaggerToOpenAPI(
 	jsonSchema = schemaJson,
 	title = "Defender API",
 	version = "1.0.0",
-	baseUrl = "https://myhost/rest/defender/v1",
+	baseUrl = "https://api.example.com/rest/defender/v1",
 	openapiVersion = "3.0.3"
 );
 
@@ -150,9 +150,10 @@ Output includes collection, folder, and per-request sections with method and URL
 
 ## End-to-end example (all-in-one)
 
+
 ```cfml
 pc = new PostmanClient({
-	host: "127.0.0.1",
+	host: "api.example.com",
 	rootDir: expandPath("/_data/tools"),
 	cdci: true,
 	webhook: false
@@ -165,17 +166,17 @@ var schemaJson = serializeJSON(allSchemas.value);
 // 2) Collection + Environment
 var collectionJson = pc.SwaggerToPostman(
 	jsonSchema = schemaJson,
-	collectionName = "Local Defender API"
+	collectionName = "Defender API"
 );
 var envJson = pc.generateEnvironment(
-	envName = "Local",
+	envName = "Production",
 	baseUrl = pc.getSourceUrl() & "defender/v1"
 );
 
 // 3) OpenAPI
 var openapiJson = pc.SwaggerToOpenAPI(
 	jsonSchema = schemaJson,
-	title = "Local Defender API",
+	title = "Defender API",
 	version = "1.0.0",
 	baseUrl = pc.getSourceUrl() & "defender/v1"
 );
@@ -207,6 +208,6 @@ Payload includes fields like `event`, `component`, `timestamp`, and operation-sp
 ## Tips
 
 - Prefer `getSourceUrl()` to construct URLs consistently; it ensures a trailing slash
-- When building `baseUrl` for Postman/OpenAPI, target the logical REST base like `https://host/rest/defender/v1`
+- When building `baseUrl` for Postman/OpenAPI, target the logical REST base like `https://api.example.com/rest/defender/v1`
 - Use `getAppEndpoints(schemas.value)` to quickly list unique endpoint paths across all resources
 - Preserve JSON key casing across your own integrations to match codebase conventions
