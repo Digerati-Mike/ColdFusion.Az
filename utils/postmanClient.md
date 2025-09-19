@@ -28,7 +28,7 @@ Key methods:
 
 ```cfml
 // Create an instance
-pc = new com.integrations.common.PostmanClient({
+pc = new PostmanClient({
 	host: "127.0.0.1",      // or FQDN; used to build default base url
 	// baseUrl: "https://api.example.com", // optional explicit base url
 	// sourceUrl: "http://127.0.0.1:8500/rest/" // optional, otherwise derived
@@ -151,7 +151,7 @@ Output includes collection, folder, and per-request sections with method and URL
 ## End-to-end example (all-in-one)
 
 ```cfml
-pc = new com.integrations.common.PostmanClient({
+pc = new PostmanClient({
 	host: "127.0.0.1",
 	rootDir: expandPath("/_data/tools"),
 	cdci: true,
