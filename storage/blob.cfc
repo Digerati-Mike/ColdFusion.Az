@@ -6,21 +6,16 @@ component accessors="true" {
     property name="CloudAliasConfig" type="string" required="true" hint="Storage account config profile in CF Admin";
     property name="storageAccount" type="string" required="true" hint="Storage account name";
     property name="storageEndpoint" type="string" required="true" hint="Storage endpoint URL";
-    property name="container" type="string" required="false" hint="Container to use, defaults to 'mycontainer'";
+    property name="container" type="string" required="false" default="mycontainer" hint="Container to use, defaults to 'mycontainer'";
     property name="cloudService" type="string" required="false" hint="Cloud service object";
 
-    // Default property values
-    this.defaultProperties = { "container": "mycontainer" };
 
     /**
      * Initializes the blob object with dynamic properties.
      * @param dynamicProperties Struct of properties to override defaults
      */
     function init(required struct dynamicProperties = {}) {
-        // Set default properties
-        for (var key in this.defaultProperties) {
-            variables[key] = this.defaultProperties[key];
-        }
+     
         // Override with dynamic properties
         for (var key in arguments.dynamicProperties) {
             variables[key] = arguments.dynamicProperties[key];
@@ -39,7 +34,7 @@ component accessors="true" {
      * @return struct with SAS URI or error
      */
     public function GenerateSas(
-        required string container = "docs",
+        required string container = GetContainer(),
         required string blobName = "example.pdf",
         required numeric timeSpan = 1,
         required array permissions = ["READ"]
