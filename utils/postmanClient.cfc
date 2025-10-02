@@ -50,10 +50,15 @@ component accessors="true" name="postmanClient" {
      * @return string (JSON)
      */
     public string function SwaggerToPostman(
-        required string jsonSchema,
+        required any jsonSchema,
         string collectionName = "Converted API Collection",
         string baseUrl = ""
     ) {
+
+        if( !IsSimpleValue( arguments.jsonSchema ) ){
+            arguments.jsonSchema = serializeJSON( arguments.jsonSchema );
+        }
+        
         var inputSchemas = deserializeJSON(arguments.jsonSchema);
 
         // Resolve effective base URL from argument, component property, or host fallback
@@ -661,7 +666,7 @@ component accessors="true" name="postmanClient" {
     ) {
         var rootUrl = len(trim(arguments.sourceUrl)) ? arguments.sourceUrl : getSourceUrl();
 
-        var endpoint = rootUrl & arguments.appName & "/?apps=#arguments.appName#";
+        var endpoint = rootUrl & "/?apps=#arguments.appName#";
 
         cfhttp( url=endpoint, method="GET", timeout=timeout, result="schemaResponse" ) {
             cfhttpparam( type="header", name="Accept", value="application/json" );
