@@ -3,11 +3,46 @@
 * @description this will be used to authenticate and interace with the Azure Key Vault rest api and retrieve api secrets and credentials
 */
 component accessors=true  {
-    property name="auth" type="string" setter=true hint="JWT  / Bearer token obtained from the internal metadata service, or an entra app registration with access to the key vault.";
-    property name="imsEndpoint" type="string" setter=true default="http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://vault.azure.net/" hint="Endpoint of the internal metadata service";
-    property name="api-version" type="string" setter=true default="7.4" hint="Default api version to use";
-    property name="endpoint" type="string" setter=true default="https://{{vaultName}}.vault.azure.net/" hint='Endpoint to send the api requests to';
-    property name="vaultName" type="string" required="true" setter=true hint='Name of the key vault';
+    
+	property 
+		name="auth"
+		type="string"
+		setter=true
+		hint="JWT  / Bearer token obtained from the internal metadata service, or an entra app registration with access to the key vault.";
+	
+    
+	property 
+		name="imsEndpoint"
+		type="string"
+		setter=true
+        default="http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://vault.azure.net/"
+		hint="Endpoint of the internal metadata service";
+	
+	property 
+		name="api-version"
+		type="string"
+		setter=true
+        default="7.4"
+		hint="Default api version to use";
+	
+    
+	property 
+		name="endpoint"
+		type="string"
+		setter=true
+        default="https://{{vaultName}}.vault.azure.net/"
+		hint='Endpoint to send the api requests to';
+	
+
+	property 
+		name="vaultName"
+		type="string"
+        required="true"
+		setter=true
+		hint='Name of the key vault';
+	
+
+    
     
     /**
     * @hint Initialize Component Properties
@@ -59,33 +94,102 @@ component accessors=true  {
         } catch(any e){
 
             return {
-                "error" : e.message
+                "error" : e
             }
         }
 
         return  authRequest 
     }
+    /**
+    * @hint Get secrets by tag
+    * @description Gets all secrets from key vault that have a specific tag key and (optionally) value.
+    * @returnType struct
+    */
+    function getSecretsByTag(
+        required string tagKey,
+        string tagValue = ""
+    ) {
+        var local.endpoint = variables.endpoint & "/secrets/?api-version=" & variables['api-version'];
+        var local.secretsCollection = [];
+        var local.apiRequest = {};
 
+        // Fetch all secrets (paged)
+        do {
+            cfhttp(
+                url = local.endpoint,
+                method = "GET",
+                result = "local.httpResult"
+            ) {
+                cfhttpparam(type="header", name="authorization", value="Bearer " & GetAuth().access_token);
+            }
+            if (local.httpResult.statusCode contains 200 ) {
+                local.apiRequest = deserializeJSON(local.httpResult.fileContent);
+            } else {
+                local.apiRequest = {
+                    "error": "HTTP error " & local.httpResult.statusCode,
+                    "response": local.httpResult.fileContent
+                };
+            }
 
+            if ( IsStruct(local.apiRequest) && StructKeyExists(local.apiRequest, "value")) {
+                ArrayAppend(local.secretsCollection, local.apiRequest.value, true);
+            }
+
+            local.endpoint = StructKeyExists(local.apiRequest, "nextLink") ? local.apiRequest.nextLink : "";
+
+        } while ( StructKeyExists(local.apiRequest, "nextLink") && Len(local.apiRequest.nextLink) > 1 );
+
+        // Filter by tag
+        var local.filteredSecrets = [];
+        for (var i = 1; i <= ArrayLen(local.secretsCollection); i++) {
+            var secret = local.secretsCollection[i];
+            // Get full secret details (to access tags)
+            var secretDetail = {};
+            try {
+                cfhttp(
+                    url = secret.id & "?api-version=" & variables['api-version'],
+                    method = "GET",
+                    result = "local.detailResult"
+                ) {
+                    cfhttpparam(type="header", name="authorization", value="Bearer " & GetAuth().access_token);
+                }
+                if (local.detailResult.statusCode contains 200) {
+                    secretDetail = deserializeJSON(local.detailResult.fileContent);
+                }
+            } catch (any e) {
+                continue;
+            }
+            if (
+                StructKeyExists(secretDetail, "tags") &&
+                StructKeyExists(secretDetail.tags, arguments.tagKey) &&
+                (Len(arguments.tagValue) EQ 0 OR secretDetail.tags[arguments.tagKey] EQ arguments.tagValue)
+            ) {
+                ArrayAppend(local.filteredSecrets, secretDetail, true);
+            }
+        }
+
+        return {
+            "value": local.filteredSecrets
+        };
+    }
+
+    
     /**
     * @hint Get all secrets
     * @description Gets the secrets from key vault.
     * @returnType struct
     */
     function getSecrets(
-        numeric pageSize = 10,
         string filter_string
     ) {
         var local.endpoint = variables.endpoint & "/secrets/?api-version=" & variables['api-version'];
         var local.secretsCollection = [];
         var local.apiRequest = {};
-        var local.secretCount = 10;
+        var local.secretCount = 0;
 
-        local.loopCount = 0
+
         do {
-            local.loopCOunt ++ 
             local.secretCount++;
-
             // Make the API request using cfhttp
             local.apiRequest = {};
             cfhttp(
@@ -113,7 +217,7 @@ component accessors=true  {
             local.endpoint = StructKeyExists( local.apiRequest, "nextLink") ? local.apiRequest.nextLink : "";
 
 
-        } while ( StructKeyExists( local.apiRequest, "nextLink" ) &&  Len(local.apiRequest.nextLInk) > 1 && local.loopCount <= pageSize );
+        } while ( StructKeyExists( local.apiRequest, "nextLink" ) &&  Len(local.apiRequest.nextLInk) > 1 );
 
 
         if( structKeyExists(arguments,"filter_string") ){
@@ -222,44 +326,27 @@ component accessors=true  {
     
     
 
-
     /**
     * @hint Add a secret
-    * @description Adds a secret to the key vault. expirationMinutes controls secret expiry in minutes.
+    * @description Adds a secret to the key vault
     * @returnType struct
     */
     function addSecret( 
         required string secretName,
-        required string secretValue = CreateUUID(),
-        string expires = "129600", // default = 3 months in minutes (90*24*60)
+        required string secretValue,
         struct tags = {}
-        ){
+     ){
         
-        var local.endpoint = variables['endpoint'] & "/secrets/" & arguments.secretName & "?api-version=" & variables['api-version'];
+        var local.endpoint = variables['endpoint'] & "/secrets/" & arguments.secretName & "?api-version=" & variables['api-version']
 
-        var expDate = now();
-        // If expires is numeric, treat as minutes from now, else try to parse as date
-        if (isNumeric(arguments.expires)) {
-            expDate = dateAdd("n", arguments.expires, now());
-        } else if (isDate(arguments.expires)) {
-            expDate = arguments.expires;
-        } else {
-            throw "Invalid expires value. Must be a number (minutes) or a valid date string.";
-        }
 
         secretObject = {
-            "value": arguments.secretValue,
-            "attributes": {
-                "enabled": true,
-                "created": dateTimeToEpoch(now()),
-                "updated": dateTimeToEpoch(now()),
-                "exp": dateTimeToEpoch(expDate)
-            }
-        };
+            "value": arguments.secretValue
+        }
 
-        StructAppend(secretObject, {
+        StructAppend( SecretObject, {
             "tags" : arguments.tags
-        }, true);
+        }, true )
 
         var local.httpResult = {};
         cfhttp(
@@ -276,8 +363,8 @@ component accessors=true  {
             return deserializeJSON(local.httpResult.fileContent);
         } else {
             return {
-                "error": "HTTP error " & local.httpResult.statusCode,
-                "response": local.httpResult.fileContent
+            "error": "HTTP error " & local.httpResult.statusCode,
+            "response": local.httpResult.fileContent
             };
         }
     }
@@ -324,15 +411,7 @@ component accessors=true  {
         if (!isDate(dateTime)) {
             throw "Invalid dateTime format.";
         }
-        
-        // Get timezone info and calculate offset in seconds
-        var tzInfo = getTimeZone();
-        var offsetSeconds = tzInfo.utcHourOffset * 3600 + tzInfo.utcMinuteOffset * 60;
-        
-        // Convert to epoch time and adjust for timezone (subtract offset to get UTC)
-        var epochTime = dateDiff("s", createDateTime(1970, 1, 1, 0, 0, 0), dateTime) - offsetSeconds;
-        
-        return epochTime;
+        return dateDiff("s", createDateTime(1970, 1, 1, 0, 0, 0), dateTime);
     }
 
     
@@ -340,16 +419,7 @@ component accessors=true  {
         if (!isNumeric(epoch)) {
             throw "Invalid epoch time format.";
         }
-        
-        // Get timezone info and calculate offset in seconds
-        var tzInfo = getTimeZone();
-        var offsetSeconds = tzInfo.utcHourOffset * 3600 + tzInfo.utcMinuteOffset * 60;
-        
-        // Convert from UTC epoch to local time (add offset to get local time)
-        var localDateTime = dateAdd("s", epoch + offsetSeconds, createDateTime(1970, 1, 1, 0, 0, 0));
-        
-        return localDateTime;
+        return dateAdd("s", epoch, createDateTime(1970, 1, 1, 0, 0, 0));
     }
-    
 
 }
