@@ -355,7 +355,7 @@ component accessors=true  {
         ) {
             cfhttpparam(type="header", name="Authorization", value="Bearer " & GetAuth().access_token);
             cfhttpparam(type="header", name="Content-Type", value="application/json");
-            cfhttpparam(type="body", value='{ "value": #arguments.secretValue# }');
+            cfhttpparam(type="body", value='{ "value": "#arguments.secretValue#" }');
         }
 
         if (local.httpResult.statusCode contains 200 or local.httpResult.statusCode contains 201) {
