@@ -337,18 +337,17 @@ component accessors=true  {
         struct tags = {}
      ){
         
-        var local.endpoint = variables['endpoint'] & "/secrets/" & arguments.secretName & "?api-version=" & variables['api-version']
+        var local = {};
+        local.endpoint = variables['endpoint'] & "/secrets/" & arguments.secretName & "?api-version=" & variables['api-version'];
 
+        // Build a local secret object to avoid accidental component-scope reuse
+        local.secretObject = { "value": arguments.secretValue }
 
-        secretObject = {
-            "value": arguments.secretValue
-        }
-
-        StructAppend( SecretObject, {
+        StructAppend( local.secretObject, {
             "tags" : arguments.tags
-        }, true )
+        }, true );
 
-        var local.httpResult = {};
+        local.httpResult = {};
         cfhttp(
             url = local.endpoint,
             method = "PUT",
@@ -356,7 +355,7 @@ component accessors=true  {
         ) {
             cfhttpparam(type="header", name="Authorization", value="Bearer " & GetAuth().access_token);
             cfhttpparam(type="header", name="Content-Type", value="application/json");
-            cfhttpparam(type="body", value=serializeJSON(secretObject));
+            cfhttpparam(type="body", value='{ "value": #arguments.secretValue# }');
         }
 
         if (local.httpResult.statusCode contains 200 or local.httpResult.statusCode contains 201) {
