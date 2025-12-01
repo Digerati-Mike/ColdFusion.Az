@@ -6,7 +6,7 @@
 component accessors="true" {
 
     property name="auth"        type="string" hint="JWT / Bearer token obtained from the internal metadata service, or an entra app registration with access to the key vault.";
-    property name="api-version" type="string" default="7.4" hint="Default api version to use";
+    property name="apiVersion"  type="string" default="7.4" hint="Default api version to use";
     property name="endpoint"    type="string" default="https://{{vaultName}}.vault.azure.net/" hint="Endpoint to send the api requests to";
     property name="vaultName"   type="string" required="true" hint="Name of the key vault";
     property name="timeout"     type="numeric" default="30" hint="Timeout for http requests in seconds"; 
@@ -66,7 +66,7 @@ component accessors="true" {
         required string tagKey,
         string tagValue = ""
     ) {
-        var local.endpoint = variables.endpoint & "/secrets/?api-version=" & variables['api-version'];
+        var local.endpoint = variables.endpoint & "/secrets/?api-version=" & variables['apiVersion'];
         var local.secretsCollection = [];
         var local.apiRequest = {};
 
@@ -105,7 +105,7 @@ component accessors="true" {
             var secretDetail = {};
             try {
                 cfhttp(
-                    url = secret.id & "?api-version=" & variables['api-version'],
+                    url = secret.id & "?api-version=" & variables['apiVersion'],
                     method = "GET",
                     timeout = variables.timeout,
                     result = "local.detailResult"
@@ -141,7 +141,7 @@ component accessors="true" {
     function getSecrets(
         string filter_string
     ) {
-        var local.endpoint = variables.endpoint & "/secrets/?api-version=" & variables['api-version'];
+        var local.endpoint = variables.endpoint & "/secrets/?api-version=" & variables['apiVersion'];
         var local.secretsCollection = [];
         var local.apiRequest = {};
         var local.secretCount = 0;
@@ -210,7 +210,7 @@ component accessors="true" {
         required string secretName
     ){
         
-        var local.endpoint = variables.endpoint & "/secrets/" & secretName & "?api-version=" & variables['api-version']
+        var local.endpoint = variables.endpoint & "/secrets/" & secretName & "?api-version=" & variables['apiVersion']
         
         var local.currentSecret = {};
         cfhttp(
@@ -234,7 +234,7 @@ component accessors="true" {
             return local.currentSecret
         }
 
-        endpoint = currentSecret.id & "?api-version=" & variables['api-version'];
+        endpoint = currentSecret.id & "?api-version=" & variables['apiVersion'];
         
         var local.secretDetail = {};
         cfhttp(
@@ -267,7 +267,7 @@ component accessors="true" {
         required string secretName
     ){
         
-        var local.endpoint = variables.endpoint & "/secrets/" & secretName & "/versions?api-version=" & variables['api-version']
+        var local.endpoint = variables.endpoint & "/secrets/" & secretName & "/versions?api-version=" & variables['apiVersion']
         var local.httpResult = {};
         cfhttp(
             url = local.endpoint,
@@ -301,7 +301,7 @@ component accessors="true" {
      ){
         
         var local = {};
-        local.endpoint = variables['endpoint'] & "/secrets/" & arguments.secretName & "?api-version=" & variables['api-version'];
+        local.endpoint = variables['endpoint'] & "/secrets/" & arguments.secretName & "?api-version=" & variables['apiVersion'];
 
         // Build a local secret object to avoid accidental component-scope reuse
         local.secretObject = { "value": arguments.secretValue }
@@ -340,7 +340,7 @@ component accessors="true" {
     function purgeSecret(
         required string secretName
     ) {
-        var purgeEndpoint = variables['endpoint'] & "/deletedsecrets/" & arguments.secretName & "?api-version=" & variables['api-version'];
+        var purgeEndpoint = variables['endpoint'] & "/deletedsecrets/" & arguments.secretName & "?api-version=" & variables['apiVersion'];
         var local = {};
         cfhttp(
             url = purgeEndpoint,
@@ -365,7 +365,7 @@ component accessors="true" {
         boolean purge = true
     ) {
         var local = {};
-        local.endpoint = variables['endpoint'] & "/secrets/" & arguments.secretName & "?api-version=" & variables['api-version'];
+        local.endpoint = variables['endpoint'] & "/secrets/" & arguments.secretName & "?api-version=" & variables['apiVersion'];
         // First, delete the secret
         cfhttp(
             url = local.endpoint,
