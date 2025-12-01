@@ -1,47 +1,14 @@
 /**
-* @hint Manage and interact with the Azure Key Vault api
-* @description this will be used to authenticate and interace with the Azure Key Vault rest api and retrieve api secrets and credentials
+* @hint Azure Key Vault Wrapper
+* @Author Michael Hayes - Media3 Technologies, LLC.
+* @description Azure Key Vault Wrapper. Uses the internal metadata service to obtain a JWT token for authentication or replace the logic inside of the Auth() function to use an Entra app registration. 
 */
-component accessors=true  {
-    
-	property 
-		name="auth"
-		type="string"
-		setter=true
-		hint="JWT  / Bearer token obtained from the internal metadata service, or an entra app registration with access to the key vault.";
-	
-    
-	property 
-		name="imsEndpoint"
-		type="string"
-		setter=true
-        default="http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://vault.azure.net/"
-		hint="Endpoint of the internal metadata service";
-	
-	property 
-		name="api-version"
-		type="string"
-		setter=true
-        default="7.4"
-		hint="Default api version to use";
-	
-    
-	property 
-		name="endpoint"
-		type="string"
-		setter=true
-        default="https://{{vaultName}}.vault.azure.net/"
-		hint='Endpoint to send the api requests to';
-	
+component accessors="true" {
 
-	property 
-		name="vaultName"
-		type="string"
-        required="true"
-		setter=true
-		hint='Name of the key vault';
-	
-
+    property name="auth"        type="string" hint="JWT / Bearer token obtained from the internal metadata service, or an entra app registration with access to the key vault.";
+    property name="api-version" type="string" default="7.4" hint="Default api version to use";
+    property name="endpoint"    type="string" default="https://{{vaultName}}.vault.azure.net/" hint="Endpoint to send the api requests to";
+    property name="vaultName"   type="string" required="true" hint="Name of the key vault";
     
     
     /**
@@ -50,11 +17,7 @@ component accessors=true  {
     */
     function init( any dynamicProperties = {} ){
 
-
-		// Set Initialized Properties
-		for (var key in dynamicProperties) {
-            variables[ Trim( key ) ] = dynamicProperties[ key ];
-        }
+        StructAppend( variables, dynamicProperties, true );
         
         if( !structKeyExists(variables, "auth") || StructKeyExists( Variables, "auth" ) && !IsStruct( variables.auth )){
             variables.auth = auth()
@@ -72,9 +35,8 @@ component accessors=true  {
     * @returnType struct
     */
     private function Auth(){
-        
         try {
-            var local.endpoint = getImsEndpoint();
+            var local.endpoint = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://vault.azure.net/"
             cfhttp(
                 url = local.endpoint,
                 method = "GET",
@@ -82,24 +44,18 @@ component accessors=true  {
             ) {
                 cfhttpparam(type="header", name="Metadata", value="true");
             }
-            if (local.httpResult.statusCode contains 200 ) {
-                authRequest = deserializeJSON(local.httpResult.fileContent);
-            } else {
-                authRequest = {
-                    "error": "HTTP error " & local.httpResult.statusCode,
-                    "response": local.httpResult.fileContent
-                };
-            }
+            return deserializeJSON(local.httpResult.fileContent)
             
         } catch(any e){
-
             return {
-                "error" : e
+                "error" : e.message
             }
         }
-
-        return  authRequest 
     }
+    
+
+
+
     /**
     * @hint Get secrets by tag
     * @description Gets all secrets from key vault that have a specific tag key and (optionally) value.
@@ -368,16 +324,39 @@ component accessors=true  {
         }
     }
 
-    
+    /**
+    * @hint Purge deleted secret
+    * @description Permanently deletes a deleted secret from the key vault
+    * @returnType struct
+    */
+    function purgeSecret(
+        required string secretName
+    ) {
+        var purgeEndpoint = variables['endpoint'] & "/deletedsecrets/" & arguments.secretName & "?api-version=" & variables['api-version'];
+        var local = {};
+        cfhttp(
+            url = purgeEndpoint,
+            method = "DELETE",
+            result = "local.purgeResult"
+        ) {
+            cfhttpparam(type="header", name="Authorization", value="Bearer " & GetAuth().access_token);
+        }
+        return local.purgeResult;
+    }
+
+
 
     /**
     * @hint Delete secret
-    * @description Deletes a secret from the key vault
+    * @description Deletes a secret from the key vault, optionally purges it
+    * @returnType struct
     */
-    function deleteSecret( 
-        required string secretName
-    ){
-        var local.endpoint = variables['endpoint'] & "/secrets/" & arguments.secretName & "?api-version=" & variables['api-version']
+    function deleteSecret(
+        required string secretName,
+        boolean purge = true
+    ) {
+        var local = {};
+        local.endpoint = variables['endpoint'] & "/secrets/" & arguments.secretName & "?api-version=" & variables['api-version'];
         // First, delete the secret
         cfhttp(
             url = local.endpoint,
@@ -387,17 +366,12 @@ component accessors=true  {
             cfhttpparam(type="header", name="Authorization", value="Bearer " & GetAuth().access_token);
         }
 
-        sleep(15000);
-
-        // Then, delete the deleted secret (purge)
-        var purgeEndpoint = variables['endpoint'] & "/deletedsecrets/" & arguments.secretName & "?api-version=" & variables['api-version'];
-
-        cfhttp(
-            url = purgeEndpoint,
-            method = "DELETE",
-            result = "local.purgeResult"
-        ) {
-            cfhttpparam(type="header", name="Authorization", value="Bearer " & GetAuth().access_token);
+        // Optionally purge the deleted secret
+        if (arguments.purge) {
+            sleep(15000);
+            local.purgeResult = purgeSecret(arguments.secretName);
+        } else {
+            local.purgeResult = {};
         }
 
         return {
@@ -405,7 +379,7 @@ component accessors=true  {
             purgeResult = local.purgeResult
         };
     }
-    
+
     function dateTimeToEpoch(dateTime) {
         if (!isDate(dateTime)) {
             throw "Invalid dateTime format.";
@@ -420,5 +394,4 @@ component accessors=true  {
         }
         return dateAdd("s", epoch, createDateTime(1970, 1, 1, 0, 0, 0));
     }
-
 }
