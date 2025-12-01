@@ -9,7 +9,7 @@ component accessors="true" {
     property name="api-version" type="string" default="7.4" hint="Default api version to use";
     property name="endpoint"    type="string" default="https://{{vaultName}}.vault.azure.net/" hint="Endpoint to send the api requests to";
     property name="vaultName"   type="string" required="true" hint="Name of the key vault";
-    
+    property name="timeout"     type="numeric" default="30" hint="Timeout for http requests in seconds"; 
     
     /**
     * @hint Initialize Component Properties
@@ -40,6 +40,7 @@ component accessors="true" {
             cfhttp(
                 url = local.endpoint,
                 method = "GET",
+                timeout = variables.timeout,
                 result = "local.httpResult"
             ) {
                 cfhttpparam(type="header", name="Metadata", value="true");
@@ -74,6 +75,7 @@ component accessors="true" {
             cfhttp(
                 url = local.endpoint,
                 method = "GET",
+                timeout = variables.timeout,
                 result = "local.httpResult"
             ) {
                 cfhttpparam(type="header", name="authorization", value="Bearer " & GetAuth().access_token);
@@ -105,6 +107,7 @@ component accessors="true" {
                 cfhttp(
                     url = secret.id & "?api-version=" & variables['api-version'],
                     method = "GET",
+                    timeout = variables.timeout,
                     result = "local.detailResult"
                 ) {
                     cfhttpparam(type="header", name="authorization", value="Bearer " & GetAuth().access_token);
@@ -151,6 +154,7 @@ component accessors="true" {
             cfhttp(
                 url = local.endpoint,
                 method = "GET",
+                timeout = variables.timeout,
                 result = "local.httpResult"
             ) {
                 cfhttpparam(type="header", name="authorization", value="Bearer " & GetAuth().access_token);
@@ -212,6 +216,7 @@ component accessors="true" {
         cfhttp(
             url = local.endpoint,
             method = "GET",
+            timeout = variables.timeout,
             result = "local.httpResult"
         ) {
             cfhttpparam(type="header", name="authorization", value="Bearer " & GetAuth().access_token);
@@ -235,6 +240,7 @@ component accessors="true" {
         cfhttp(
             url = endpoint,
             method = "GET",
+            timeout = variables.timeout,
             result = "local.httpResult"
         ) {
             cfhttpparam(type="header", name="authorization", value="Bearer " & GetAuth().access_token);
@@ -266,6 +272,7 @@ component accessors="true" {
         cfhttp(
             url = local.endpoint,
             method = "GET",
+            timeout = variables.timeout,
             result = "local.httpResult"
         ) {
             cfhttpparam(type="header", name="authorization", value="Bearer " & GetAuth().access_token);
@@ -307,6 +314,7 @@ component accessors="true" {
         cfhttp(
             url = local.endpoint,
             method = "PUT",
+            timeout = variables.timeout,
             result = "local.httpResult"
         ) {
             cfhttpparam(type="header", name="Authorization", value="Bearer " & GetAuth().access_token);
@@ -337,6 +345,7 @@ component accessors="true" {
         cfhttp(
             url = purgeEndpoint,
             method = "DELETE",
+            timeout = variables.timeout,
             result = "local.purgeResult"
         ) {
             cfhttpparam(type="header", name="Authorization", value="Bearer " & GetAuth().access_token);
@@ -361,6 +370,7 @@ component accessors="true" {
         cfhttp(
             url = local.endpoint,
             method = "DELETE",
+            timeout = variables.timeout,
             result = "local.deleteResult"
         ) {
             cfhttpparam(type="header", name="Authorization", value="Bearer " & GetAuth().access_token);
